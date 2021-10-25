@@ -1,0 +1,220 @@
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceInstance
+metadata:
+  name: kyma-native-uaa
+  namespace: poc
+spec:
+  clusterServiceClassExternalName: xsuaa
+  clusterServicePlanExternalName: application
+  parameters:
+    xsappname: kymaciasnative
+    tenant-mode: dedicated
+    scopes:
+      - name: "$XSAPPNAME.admin"
+        description: Admin scope
+      - name: "$XSAPPNAME.crud"
+        description: CRUD scope
+      - name: "$XSAPPNAME.dest"
+        description: Destination scope
+      - name: "uaa.user"
+        description: UAA
+    role-templates:
+      - name: Admin
+        description: Admin role
+        scope-references:
+          - "$XSAPPNAME.admin"
+          - "$XSAPPNAME.crud"
+          - "$XSAPPNAME.dest"
+          - "uaa.user"
+      - name: NonAdmin
+        description: Non Admin
+        scope-references:
+          - "$XSAPPNAME.crud"
+          - "$XSAPPNAME.dest"
+          - "uaa.user"
+    role-collections:
+      - name: CIASKymaAdminNative
+        description: CIAS Kyma Admin - Native
+        role-template-references :
+          - $XSAPPNAME.Admin
+      - name: CIASKymaNonAdminNative
+        description: CIAS Kyma Non Admin - Native
+        role-template-references:
+          - $XSAPPNAME.NonAdmin
+
+---
+
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceInstance
+metadata:
+  name: kyma-native-destination
+  namespace: poc
+spec:
+  clusterServiceClassExternalName: destination
+  clusterServicePlanExternalName: lite
+
+---
+
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceBinding
+metadata:
+  name: kyma-native-uaa-binding
+  namespace: poc
+spec:
+  instanceRef:
+    name: kyma-native-uaa
+  secretName: kyma-native-uaa-binding
+
+---
+
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceBinding
+metadata:
+  name: kyma-native-destination-binding
+  namespace: poc
+spec:
+  instanceRef:
+    name: kyma-native-destination
+  secretName: kyma-native-destination-binding
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kyma-cf-hana-secret
+  namespace: poc
+type: Opaque
+stringData:
+  hana_config: removed
+
+---
+
+apiVersion: servicecatalog.kyma-project.io/v1alpha1
+kind: ServiceBindingUsage
+metadata:
+  name: kyma-native-uaa-binding-usage
+  namespace: poc
+spec:
+  parameters:
+    envPrefix:
+      name: xsuaa_
+  serviceBindingRef:
+    name: kyma-native-uaa-binding
+  usedBy:
+    kind: deployment
+    name: kymapilot
+
+---
+
+apiVersion: servicecatalog.kyma-project.io/v1alpha1
+kind: ServiceBindingUsage
+metadata:
+  name: kyma-native-destination-binding-usage
+  namespace: poc
+spec:
+  parameters:
+    envPrefix:
+      name: destination_
+  serviceBindingRef:
+    name: kyma-native-destination-binding
+  usedBy:
+    kind: deployment
+    name: kymapilot
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: poc
+  name: kymapilot
+  labels:
+    app: kymapilot
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kymapilot
+      version: v1
+  template:
+    metadata:
+      namespace: poc
+      labels:
+        app: kymapilot
+        version: v1
+    spec:
+      containers:
+        - name: kymapilot
+          image: boudhayandev/kymapilot:1
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: kyma-native-uaa
+              mountPath: "/etc/secrets/sapbtp/xsuaa/kyma-native-uaa"
+              readOnly: true
+            - name: kyma-native-destination
+              mountPath: "/etc/secrets/sapbtp/destination/kyma-native-destination"
+              readOnly: true
+          envFrom:
+            - secretRef:
+                name: kyma-cf-hana-secret
+      volumes:
+        - name: kyma-native-uaa
+          secret:
+            secretName: kyma-native-uaa-binding
+        - name: kyma-native-destination
+          secret:
+            secretName: kyma-native-destination-binding
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: poc
+  name: kymapilot
+  labels:
+    app: kymapilot
+    service: kymapilot
+spec:
+  ports:
+    - port: 8080
+      name: http
+  selector:
+    app: kymapilot
+
+---
+apiVersion: gateway.kyma-project.io/v1alpha1
+kind: APIRule
+metadata:
+  name: kymapilot
+  namespace: poc
+spec:
+  gateway: kyma-gateway.kyma-system.svc.cluster.local
+  rules:
+    - accessStrategies:
+        - config: {}
+          handler: allow
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - HEAD
+      path: /.*
+  service:
+    host: kymapilot-api
+    name: kymapilot
+    port: 8080

@@ -1,0 +1,60 @@
+{
+  "xsappname": "kymanative",
+  "description": " Kyma Poc - native",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "uaa.user",
+      "description": "UAA"
+    },
+    {
+      "name": "$XSAPPNAME.dest",
+      "description": "Destination scope"
+    },
+    {
+      "name": "$XSAPPNAME.crud",
+      "description": "CRUD scope"
+    },
+    {
+      "name": "$XSAPPNAME.admin",
+      "description": "Admin scope"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "Admin",
+      "description": "Admin role",
+      "scope-references": [
+        "$XSAPPNAME.admin",
+        "$XSAPPNAME.crud",
+        "$XSAPPNAME.dest",
+        "uaa.user"
+      ]
+    },
+    {
+      "name": "NonAdmin",
+      "description": "Non admin",
+      "scope-references": [
+        "$XSAPPNAME.crud",
+        "$XSAPPNAME.dest",
+        "uaa.user"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "KymaAdminNative",
+      "description": " Kyma Admin - Native",
+      "role-template-references": [
+        "$XSAPPNAME.Admin"
+      ]
+    },
+    {
+      "name": "KymaNonAdminNative",
+      "description": " Kyma Non Admin - Native",
+      "role-template-references": [
+        "$XSAPPNAME.NonAdmin"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+---
+defaults: &defaults
+  buildpacks:
+    - java_buildpack
+  memory: 1G
+
+applications:
+  - name: kyma-runtime
+    path: target/KymaPilot-0.0.1-SNAPSHOT.war
+    host: kyma-runtime
+    <<: *defaults
+    services:
+      - kyma-uaa
+      - kyma-hana
+      - kyma-destination
+    env:
+      SAP_JWT_TRUST_ACL: >
+        [{"clientid":"*","identityzone":"sap-provisioning"}]

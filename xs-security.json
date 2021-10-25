@@ -1,0 +1,62 @@
+{
+  "xsappname": "kymapilot",
+  "description": " Kyma Poc",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "uaa.user",
+      "description": "UAA"
+    },
+    {
+      "name": "$XSAPPNAME.dest",
+      "description": "Destination scope"
+    },
+    {
+      "name": "$XSAPPNAME.crud",
+      "description": "CRUD scope"
+    },
+    {
+      "name": "$XSAPPNAME.admin",
+      "description": "Admin scope"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "Admin",
+      "description": "Admin role",
+      "scope-references": [
+        "$XSAPPNAME.admin",
+        "$XSAPPNAME.crud",
+        "$XSAPPNAME.dest",
+        "uaa.user"
+      ]
+    },
+    {
+      "name": "NonAdmin",
+      "description": "Non admin",
+      "scope-references": [
+        "$XSAPPNAME.crud",
+        "$XSAPPNAME.dest",
+        "uaa.user"
+      ]
+    }
+  ],
+  "role-collections": [
+   {
+      "name": "KymaAdmin",
+      "description": " Kyma Admin",
+      "role-template-references": [
+        "$XSAPPNAME.Admin"
+      ]
+    }, {
+      "name": "KymaNonAdmin",
+      "description": " Kyma Non Admin",
+      "role-template-references": [
+        "$XSAPPNAME.NonAdmin"
+      ]
+    }],
+  "oauth2-configuration": {
+    "system-attributes": ["rolecollections"],
+    "credential-types": ["binding-secret", "instance-secret"]
+  }
+}
