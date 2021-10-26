@@ -1,0 +1,21 @@
+{
+    "welcomeFile": "index.html",
+    "authenticationMethod": "route",
+      "logout": {
+    "logoutEndpoint": "/do/logout"
+  },
+    "routes": [
+        {
+            "source": "^/runtimeservice/(.*)$",
+            "target": "$1",
+            "authenticationType": "xsuaa",
+            "destination": "runtime-service"
+        },
+        {
+            "source": "^/(.*)",
+            "authenticationType": "xsuaa",
+            "localDir": "resources",
+            "cacheControl": "no-cache, no-store, must-revalidate"
+        }
+    ]
+}

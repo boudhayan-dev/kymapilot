@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xml>
+<configuration debug="false" scan="false">
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+    <springProfile name="cloud | dev">
+        <root level="${LOG_ROOT_LEVEL:-INFO}">
+            <appender-ref ref="STDOUT" />
+        </root>
+        <logger name="com.sap.hcp.cf" level="${LOG_HCP_CF_LEVEL:-INFO}" />
+    </springProfile>
+</configuration>

@@ -1,0 +1,182 @@
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceInstance
+metadata:
+  name: kyma-native-uaa
+  namespace: poc
+spec:
+  clusterServiceClassExternalName: xsuaa
+  clusterServicePlanExternalName: application
+  parameters:
+    xsappname: kymaciasnative
+    tenant-mode: dedicated
+    oauth2-configuration:
+      redirect-uris:
+        - https://*/**
+    scopes:
+      - name: "$XSAPPNAME.admin"
+        description: Admin scope
+      - name: "$XSAPPNAME.crud"
+        description: CRUD scope
+      - name: "$XSAPPNAME.dest"
+        description: Destination scope
+      - name: "uaa.user"
+        description: UAA
+    role-templates:
+      - name: Admin
+        description: Admin role
+        scope-references:
+          - "$XSAPPNAME.admin"
+          - "$XSAPPNAME.crud"
+          - "$XSAPPNAME.dest"
+          - "uaa.user"
+      - name: NonAdmin
+        description: Non Admin
+        scope-references:
+          - "$XSAPPNAME.crud"
+          - "$XSAPPNAME.dest"
+          - "uaa.user"
+    role-collections:
+      - name: CIASKymaAdminNative
+        description: CIAS Kyma Admin - Native
+        role-template-references :
+          - $XSAPPNAME.Admin
+      - name: CIASKymaNonAdminNative
+        description: CIAS Kyma Non Admin - Native
+        role-template-references:
+          - $XSAPPNAME.NonAdmin
+
+---
+
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceBinding
+metadata:
+  name: kyma-native-uaa-binding-ui
+  namespace: poc
+spec:
+  instanceRef:
+    name: kyma-native-uaa
+  secretName: kyma-native-uaa-binding-ui
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyma-destination-backend-config
+  namespace: poc
+data:
+   destinations: >
+     [
+      {
+         "name": "runtime-service",
+         "url": "https://<<RUNTIME__URL>>",
+         "forwardAuthToken": true
+      }
+     ]
+
+---
+
+apiVersion: servicecatalog.kyma-project.io/v1alpha1
+kind: ServiceBindingUsage
+metadata:
+  name: kyma-native-uaa-binding-usage-ui
+  namespace: poc
+spec:
+  parameters:
+    envPrefix:
+      name: xsuaa_
+  serviceBindingRef:
+    name: kyma-native-uaa-binding-ui
+  usedBy:
+    kind: deployment
+    name: kymapilot-ui
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: poc
+  name: kymapilot-ui
+  labels:
+    app: kymapilot-ui
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kymapilot-ui
+      version: v1
+  template:
+    metadata:
+      namespace: poc
+      labels:
+        app: kymapilot-ui
+        version: v1
+    spec:
+      containers:
+        - name: kymapilot-ui
+          image: boudhayandev/kymapilot-ui:latest
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: kyma-native-uaa
+              mountPath: "/etc/secrets/sapcp/xsuaa/kyma-native-uaa"
+              readOnly: true
+          envFrom:
+           - configMapRef:
+              name: kyma-destination-backend-config
+      volumes:
+        - name: kyma-native-uaa
+          secret:
+            secretName: kyma-native-uaa-binding-ui
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: poc
+  name: kymapilot-ui
+  labels:
+    app: kymapilot-ui
+    service: kymapilot-ui
+spec:
+  ports:
+    - port: 5000
+      name: http
+  selector:
+    app: kymapilot-ui
+
+---
+apiVersion: gateway.kyma-project.io/v1alpha1
+kind: APIRule
+metadata:
+  name: kymapilot-ui
+  namespace: poc
+spec:
+  gateway: kyma-gateway.kyma-system.svc.cluster.local
+  rules:
+    - accessStrategies:
+        - config: {}
+          handler: allow
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - HEAD
+      path: /.*
+  service:
+    host: kymapilot-ui
+    name: kymapilot-ui
+    port: 5000
