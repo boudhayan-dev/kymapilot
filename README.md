@@ -1,6 +1,6 @@
 # Kyma Pilot
 
-This is a sample full stack application designed to run on Kyma runtime.
+This is a sample full stack application designed to run on Kyma runtime (Kubernetes).
 
 UI -> UI5
 Backend - Spring boot
